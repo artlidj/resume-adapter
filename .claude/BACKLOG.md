@@ -1,45 +1,22 @@
 # BACKLOG — Проект - Адаптатор резюме
 
-*Task tracking for Проект - Адаптатор резюме*
+*Refreshed on 2026-02-18*
 
-## Active Sprint
+## Active Tasks
 
-### High Priority
-- [ ] Add your high priority tasks here
+- [ ] if (data?.nextToken) {
+- [ ] const next = await vectorClient.listBuckets({ nextToken: data.nextToken })
+- [ ] let nextToken: string | undefined
+- [ ] nextToken,
+- [ ] nextToken = data?.nextToken
+- [ ] } while (nextToken)
+- [ ] corresponding to a either the line we are searching for or the next closest line
+- [ ] given line and either the column we are searching for or the next closest column
+- [ ] When actively developing an application it can be useful to see when the time spent between one `debug()` call and the next. Suppose for example you invoke `debug()` before requesting a resource, and after as well, the "+NNNms" will show you how much time was spent between calls.
+- [ ] similar risk on the *next* set of prerelease versions.
+- [ ] * `premajor` in one call will bump the version up to the next major
 
-### Medium Priority
-- [ ] Add your medium priority tasks here
+## Framework Follow-Ups
 
-### Low Priority
-- [ ] Add your low priority tasks here
-
-## Backlog
-
-### Features
-- [ ] Feature idea 1
-- [ ] Feature idea 2
-
-### Improvements
-- [ ] Improvement idea 1
-- [ ] Improvement idea 2
-
-### Bug Fixes
-- [ ] Known bug 1
-- [ ] Known bug 2
-
-### Technical Debt
-- [ ] Tech debt item 1
-- [ ] Tech debt item 2
-
-## Completed
-
-### Recently Completed
-- [x] Initialized Claude Code Starter Framework (2026-02-18)
-
-## Notes
-
-Add any notes about task priorities, dependencies, or context here.
-
----
-*Use `/feature` command to plan new features*
-*Use `/fix` command to address bugs*
+- [ ] Review generated state files and adjust priorities.
+- [ ] Continue work cycle via start/finish protocol.

@@ -1,0 +1,6 @@
+[22:23:03] INFO: Framework Core v4.0.0 - completion
+[22:23:03] INFO: Log file: .claude/logs/framework-core/completion-20260218-222303.log
+[22:23:03] INFO: Task 'export_dialogs': completed
+[22:23:03] INFO: Task 'cleanup_dialogs': completed
+[22:23:03] INFO: Task 'get_git_diff': completed (19ms)
+[22:23:03] INFO: Task 'check_git_status': completed (23ms)

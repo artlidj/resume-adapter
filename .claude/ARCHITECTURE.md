@@ -1,58 +1,46 @@
 # ARCHITECTURE — Проект - Адаптатор резюме
 
-*Code structure and architecture documentation*
+*Generated from detected project artifacts*
 
-## Overview
+## Detected Stack
 
-Software project initialized with dual-agent framework lifecycle.
+- Stack requires manual confirmation
 
-**Tech Stack:**
-{{TECH_STACK}}
+## Top-Level Structure
 
-## Directory Structure
+- `AGENTS.md`
+- `apps/`
+- `CLAUDE.md`
+- `FRAMEWORK_GUIDE.md`
+- `init-project.sh`
+- `security/`
+- `src/`
+- `supabase/`
+- `План проекта.md`
 
-```
-Проект - Адаптатор резюме/
-security,security/cleanup-dialogs.sh security/auto-invoke-agent.sh,security/README.md security/check-triggers.sh,security/initial-scan.sh init-project.sh,FRAMEWORK_GUIDE.md AGENTS.md,CLAUDE.md
-```
+## Key Topics
 
-## Key Components
+- Requirements
+- Features
+- Quick Start Guide
+- Installing the module
+- Connecting to the storage backend
+- Option 1: Via Supabase Client (Recommended)
+- Option 2: Standalone StorageClient
+- Understanding Bucket Types
+- 1. Regular Storage Buckets (File Storage)
+- 2. Vector Buckets (Embeddings Storage)
+- 3. Analytics Buckets
+- Handling resources
+- Handling Storage Buckets
+- Handling Files
+- Analytics Buckets
+- What are Analytics Buckets?
+- When to Use Analytics Buckets
+- Quick Start
 
-### {{COMPONENT_1_NAME}}
-**Location:** `{{COMPONENT_1_PATH}}`
-**Purpose:** {{COMPONENT_1_PURPOSE}}
+## Notes
 
-### {{COMPONENT_2_NAME}}
-**Location:** `{{COMPONENT_2_PATH}}`
-**Purpose:** {{COMPONENT_2_PURPOSE}}
-
-## Architecture Patterns
-
-**Pattern:** {{ARCHITECTURE_PATTERN}}
-**Description:** {{PATTERN_DESCRIPTION}}
-
-## Data Flow
-
-```
-{{DATA_FLOW_DIAGRAM}}
-```
-
-## External Dependencies
-
-{{DEPENDENCIES_LIST}}
-
-## Configuration
-
-**Environment:** {{ENV_CONFIG}}
-**Build:** {{BUILD_CONFIG}}
-
-## Testing Strategy
-
-{{TESTING_STRATEGY}}
-
-## Deployment
-
-{{DEPLOYMENT_INFO}}
-
----
-*This file is auto-generated during framework initialization and can be manually updated*
+- Shared memory is stored in `.claude/`.
+- Runtime entry points are in `CLAUDE.md` and `AGENTS.md`.
+- Shared execution core is `src/framework-core/`.
