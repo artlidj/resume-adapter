@@ -1,0 +1,8 @@
+[20:13:32] INFO: Framework Core v4.0.0 - cold-start
+[20:13:32] INFO: Log file: .claude/logs/framework-core/cold-start-20260218-201332.log
+[20:13:32] INFO: Task 'ensure_commit_policy': completed
+[20:13:32] INFO: Task 'migration_cleanup': completed
+[20:13:32] INFO: Task 'cleanup_dialogs': completed
+[20:13:32] INFO: Task 'export_dialogs': completed
+[20:13:32] INFO: Task 'install_git_hooks': completed (6ms)
+[20:13:32] INFO: Task 'check_update': completed (16ms)

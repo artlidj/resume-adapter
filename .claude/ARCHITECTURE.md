@@ -1,0 +1,58 @@
+# ARCHITECTURE — Проект - Адаптатор резюме
+
+*Code structure and architecture documentation*
+
+## Overview
+
+Software project initialized with dual-agent framework lifecycle.
+
+**Tech Stack:**
+{{TECH_STACK}}
+
+## Directory Structure
+
+```
+Проект - Адаптатор резюме/
+security,security/cleanup-dialogs.sh security/auto-invoke-agent.sh,security/README.md security/check-triggers.sh,security/initial-scan.sh init-project.sh,FRAMEWORK_GUIDE.md AGENTS.md,CLAUDE.md
+```
+
+## Key Components
+
+### {{COMPONENT_1_NAME}}
+**Location:** `{{COMPONENT_1_PATH}}`
+**Purpose:** {{COMPONENT_1_PURPOSE}}
+
+### {{COMPONENT_2_NAME}}
+**Location:** `{{COMPONENT_2_PATH}}`
+**Purpose:** {{COMPONENT_2_PURPOSE}}
+
+## Architecture Patterns
+
+**Pattern:** {{ARCHITECTURE_PATTERN}}
+**Description:** {{PATTERN_DESCRIPTION}}
+
+## Data Flow
+
+```
+{{DATA_FLOW_DIAGRAM}}
+```
+
+## External Dependencies
+
+{{DEPENDENCIES_LIST}}
+
+## Configuration
+
+**Environment:** {{ENV_CONFIG}}
+**Build:** {{BUILD_CONFIG}}
+
+## Testing Strategy
+
+{{TESTING_STRATEGY}}
+
+## Deployment
+
+{{DEPLOYMENT_INFO}}
+
+---
+*This file is auto-generated during framework initialization and can be manually updated*
