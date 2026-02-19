@@ -1,30 +1,42 @@
-# SNAPSHOT — Проект - Адаптатор резюме
+# SNAPSHOT — Адаптатор резюме
 
-*Last updated: 2026-02-18*
+*Last updated: 2026-02-19*
 
 ## Current State
 
 - Framework mode: active
 - Active branch: `main`
-- Source documents analyzed: 12
+- Status: MVP в разработке
 
 ## Project Overview
 
-<br /> <p align="center"> <a href="https://supabase.io"> <picture> <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/supabase/supabase/master/packages/common/assets/images/supabase-logo-wordmark--dark.svg"> <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/supabase/supabase/master/packages/common/assets/images/supabase-logo-wordmark--light.svg"> <img alt="Supabase Logo" width="300" src="https://raw.githubusercontent.com/supabase/supabase/master/packages/common/assets/images/logo-preview.jpg"> </picture> </a>
+Инструмент для адаптации резюме под конкретную вакансию (ATS-совместимость).
 
-## Source Documents
+**Стек:**
+- Frontend: React 18 + TypeScript + Vite (порт 5173)
+- Backend: Express + Node.js + TypeScript (порт 8787)
+- БД/Auth: Supabase (PostgreSQL + RLS)
+- LLM: OpenAI (планируется, пока мок)
 
-- `apps/web/node_modules/@supabase/storage-js/README.md`
-- `apps/api/node_modules/@supabase/storage-js/README.md`
-- `apps/api/node_modules/qs/README.md`
-- `apps/web/node_modules/source-map-js/README.md`
-- `apps/web/node_modules/debug/README.md`
-- `apps/web/node_modules/baseline-browser-mapping/README.md`
-- `apps/api/node_modules/string_decoder/node_modules/safe-buffer/README.md`
-- `apps/api/node_modules/safe-buffer/README.md`
+## What's Done
+
+- [x] Monorepo структура (apps/web + apps/api)
+- [x] Frontend: форма загрузки резюме + описание вакансии
+- [x] Auth UI: раздельные формы входа и регистрации с именем пользователя
+- [x] Supabase: проект создан, .env настроены, таблица `adaptations` создана
+- [x] Backend: Express + multer + валидация файлов
+- [x] Парсинг файлов: PDF (pdf-parse), DOCX (mammoth), TXT
+- [x] Security: helmet.js, rate limiting (20 req/15min), MIME validation, jobDescription limits
+- [x] Mock адаптация (заглушка до подключения OpenAI)
+
+## What's Next
+
+- [ ] Интеграция OpenAI (system prompt + Chat Completions API)
+- [ ] Страница результата (оригинал vs адаптированный + diff)
+- [ ] Генерация PDF на выходе
+- [ ] Защита от галлюцинаций (базовая валидация ответа)
+- [ ] Деплой: фронт на Netlify, API на Railway
 
 ## Current Focus
 
-- [ ] if (data?.nextToken) {
-- [ ] const next = await vectorClient.listBuckets({ nextToken: data.nextToken })
-- [ ] let nextToken: string | undefined
+Следующий шаг: интеграция OpenAI Chat Completions с system prompt для ATS-адаптации.

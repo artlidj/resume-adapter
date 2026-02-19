@@ -1,6 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { createMockAdaptation } from "../lib/adapt.js";
+import { parseResumeFile } from "../lib/parser.js";
 import { resolveUserId } from "../lib/auth.js";
 import { hasSupabaseConfig, saveAdaptationLog } from "../lib/supabase.js";
 
@@ -10,6 +11,14 @@ const upload = multer({
 });
 
 const allowedExtensions = new Set(["pdf", "doc", "docx", "txt"]);
+const allowedMimeTypes = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain"
+]);
+const JOB_DESCRIPTION_MIN = 50;
+const JOB_DESCRIPTION_MAX = 20000;
 
 function getExtension(filename: string): string {
   const parts = filename.toLowerCase().split(".");
@@ -43,9 +52,32 @@ adaptRouter.post("/adapt", upload.single("resumeFile"), async (req, res) => {
     return res.status(400).json({ error: "jobDescription is required" });
   }
 
+  if (jobDescription.length < JOB_DESCRIPTION_MIN) {
+    return res.status(400).json({ error: `Job description is too short (min ${JOB_DESCRIPTION_MIN} characters)` });
+  }
+
+  if (jobDescription.length > JOB_DESCRIPTION_MAX) {
+    return res.status(400).json({ error: `Job description is too long (max ${JOB_DESCRIPTION_MAX} characters)` });
+  }
+
   const extension = getExtension(file.originalname);
   if (!allowedExtensions.has(extension)) {
     return res.status(400).json({ error: "Unsupported file format. Allowed: PDF, DOC, DOCX, TXT" });
+  }
+
+  if (!allowedMimeTypes.has(file.mimetype)) {
+    return res.status(400).json({ error: "Invalid file type" });
+  }
+
+  let resumeText: string;
+  try {
+    resumeText = await parseResumeFile(file.buffer, file.originalname);
+  } catch {
+    return res.status(422).json({ error: "Could not extract text from the uploaded file." });
+  }
+
+  if (!resumeText) {
+    return res.status(422).json({ error: "The uploaded file appears to be empty or unreadable." });
   }
 
   const result = createMockAdaptation(jobDescription, file.originalname);

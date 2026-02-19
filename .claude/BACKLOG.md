@@ -1,22 +1,27 @@
-# BACKLOG — Проект - Адаптатор резюме
+# BACKLOG — Адаптатор резюме
 
-*Refreshed on 2026-02-18*
+*Refreshed on 2026-02-19*
+
+## Completed
+
+- [x] Monorepo структура (apps/web + apps/api)
+- [x] Frontend: форма загрузки + вакансия + Auth UI
+- [x] Supabase: проект, .env, таблица adaptations, RLS политики
+- [x] Backend: Express + multer + парсинг PDF/DOCX/TXT
+- [x] Security: helmet, rate limiting, MIME validation, input limits
+- [x] Auth UI: раздельные формы входа/регистрации, имя пользователя в session bar
 
 ## Active Tasks
 
-- [ ] if (data?.nextToken) {
-- [ ] const next = await vectorClient.listBuckets({ nextToken: data.nextToken })
-- [ ] let nextToken: string | undefined
-- [ ] nextToken,
-- [ ] nextToken = data?.nextToken
-- [ ] } while (nextToken)
-- [ ] corresponding to a either the line we are searching for or the next closest line
-- [ ] given line and either the column we are searching for or the next closest column
-- [ ] When actively developing an application it can be useful to see when the time spent between one `debug()` call and the next. Suppose for example you invoke `debug()` before requesting a resource, and after as well, the "+NNNms" will show you how much time was spent between calls.
-- [ ] similar risk on the *next* set of prerelease versions.
-- [ ] * `premajor` in one call will bump the version up to the next major
+- [ ] Интеграция OpenAI (system prompt + gpt-4o-mini)
+- [ ] Страница результата: оригинал vs адаптированный текст + diff
+- [ ] Генерация ATS-friendly PDF на выходе
+- [ ] Базовая защита от галлюцинаций (сверка дат/компаний с исходником)
 
-## Framework Follow-Ups
+## Backlog
 
-- [ ] Review generated state files and adjust priorities.
-- [ ] Continue work cycle via start/finish protocol.
+- [ ] Деплой: фронт → Netlify, API → Railway
+- [ ] Free tier лимит (3-5 адаптаций на аккаунт)
+- [ ] Минимальные e2e тесты
+- [ ] Улучшенное логирование (morgan/structured)
+- [ ] RLS политики UPDATE/DELETE для таблицы adaptations

@@ -37,11 +37,16 @@ type Translation = {
   privacyBody: string;
   authTitle: string;
   authSubtitle: string;
+  authTitleSignUp: string;
+  authSubtitleSignUp: string;
+  nameLabel: string;
   emailLabel: string;
   passwordLabel: string;
   signIn: string;
   signUp: string;
   signOut: string;
+  switchToSignUp: string;
+  switchToSignIn: string;
   authConfigError: string;
 };
 
@@ -71,12 +76,17 @@ const translations: Record<Language, Translation> = {
     privacyTitle: "Privacy",
     privacyBody: "Your resume is used only for adaptation. We do not store source files permanently.",
     authTitle: "Sign in",
-    authSubtitle: "Create account once, then adapt resumes in your private workspace.",
+    authSubtitle: "Welcome back. Sign in to your account.",
+    authTitleSignUp: "Create account",
+    authSubtitleSignUp: "Create account once, then adapt resumes in your private workspace.",
+    nameLabel: "First name",
     emailLabel: "Email",
     passwordLabel: "Password",
     signIn: "Sign in",
     signUp: "Create account",
     signOut: "Sign out",
+    switchToSignUp: "No account? Register",
+    switchToSignIn: "Already have an account? Sign in",
     authConfigError: "Supabase auth is not configured in frontend env."
   },
   ru: {
@@ -104,12 +114,17 @@ const translations: Record<Language, Translation> = {
     privacyTitle: "Конфиденциальность",
     privacyBody: "Ваше резюме используется только для адаптации. Исходные файлы не хранятся постоянно.",
     authTitle: "Вход",
-    authSubtitle: "Создайте аккаунт один раз и работайте с адаптациями в личном пространстве.",
+    authSubtitle: "С возвращением. Войдите в свой аккаунт.",
+    authTitleSignUp: "Регистрация",
+    authSubtitleSignUp: "Создайте аккаунт один раз и работайте с адаптациями в личном пространстве.",
+    nameLabel: "Имя",
     emailLabel: "Email",
     passwordLabel: "Пароль",
     signIn: "Войти",
-    signUp: "Создать аккаунт",
+    signUp: "Зарегистрироваться",
     signOut: "Выйти",
+    switchToSignUp: "Нет аккаунта? Зарегистрироваться",
+    switchToSignIn: "Уже есть аккаунт? Войти",
     authConfigError: "Supabase auth не настроен в переменных фронтенда."
   }
 };
@@ -121,6 +136,8 @@ export default function App() {
   const [language, setLanguage] = useState<Language>("ru");
   const [session, setSession] = useState<Session | null>(null);
 
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  const [authName, setAuthName] = useState("");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authError, setAuthError] = useState("");
@@ -226,7 +243,8 @@ export default function App() {
 
     const { error } = await supabase.auth.signUp({
       email: authEmail.trim(),
-      password: authPassword
+      password: authPassword,
+      options: { data: { name: authName.trim() } }
     });
 
     if (error) setAuthError(error.message);
@@ -300,10 +318,17 @@ export default function App() {
 
         {!session ? (
           <section className="auth-card">
-            <h2>{t.authTitle}</h2>
-            <p>{t.authSubtitle}</p>
+            <h2>{authMode === "signin" ? t.authTitle : t.authTitleSignUp}</h2>
+            <p>{authMode === "signin" ? t.authSubtitle : t.authSubtitleSignUp}</p>
 
             {!isSupabaseClientReady ? <p className="status error-text">{t.authConfigError}</p> : null}
+
+            {authMode === "signup" ? (
+              <label className="field">
+                <span>{t.nameLabel}</span>
+                <input type="text" value={authName} onChange={(event) => setAuthName(event.target.value)} placeholder="Иван" />
+              </label>
+            ) : null}
 
             <label className="field">
               <span>{t.emailLabel}</span>
@@ -316,20 +341,31 @@ export default function App() {
             </label>
 
             <div className="actions">
-              <button type="button" className="submit-btn" onClick={handleSignIn} disabled={!isSupabaseClientReady || authLoading}>
-                {t.signIn}
-              </button>
-              <button type="button" className="ghost-btn" onClick={handleSignUp} disabled={!isSupabaseClientReady || authLoading}>
-                {t.signUp}
-              </button>
+              {authMode === "signin" ? (
+                <button type="button" className="submit-btn" onClick={handleSignIn} disabled={!isSupabaseClientReady || authLoading}>
+                  {t.signIn}
+                </button>
+              ) : (
+                <button type="button" className="submit-btn" onClick={handleSignUp} disabled={!isSupabaseClientReady || authLoading}>
+                  {t.signUp}
+                </button>
+              )}
             </div>
+
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() => { setAuthMode(authMode === "signin" ? "signup" : "signin"); setAuthError(""); }}
+            >
+              {authMode === "signin" ? t.switchToSignUp : t.switchToSignIn}
+            </button>
 
             {authError ? <p className="status error-text">{authError}</p> : null}
           </section>
         ) : (
           <>
             <div className="session-bar">
-              <span>{session.user.email}</span>
+              <span>{session.user.user_metadata?.name || session.user.email}</span>
               <button type="button" className="ghost-btn" onClick={handleSignOut}>
                 {t.signOut}
               </button>

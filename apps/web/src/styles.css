@@ -345,6 +345,21 @@ small {
   border-color: #111111;
 }
 
+.link-btn {
+  background: none;
+  border: none;
+  color: #4f6ef7;
+  cursor: pointer;
+  font-size: 0.875rem;
+  padding: 0;
+  text-decoration: underline;
+  margin-top: 4px;
+}
+
+.link-btn:hover {
+  color: #3451d1;
+}
+
 .privacy {
   margin-top: 18px;
   border-top: 1px solid #e0e3e8;
