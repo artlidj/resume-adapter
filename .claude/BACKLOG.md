@@ -1,6 +1,6 @@
 # BACKLOG — Адаптатор резюме
 
-*Refreshed on 2026-02-19*
+*Refreshed on 2026-02-20*
 
 ## Completed
 
@@ -10,12 +10,13 @@
 - [x] Backend: Express + multer + парсинг PDF/DOCX/TXT
 - [x] Security: helmet, rate limiting, MIME validation, input limits
 - [x] Auth UI: раздельные формы входа/регистрации, имя пользователя в session bar
+- [x] Интеграция OpenAI (system prompt + gpt-4o-mini + createAdaptation функция)
+- [x] Отображение результата на фронтенде (адаптированный текст, keywords, match score)
+- [x] Генерация DOCX для скачивания (docx библиотека + endpoint /adapt/download)
 
 ## Active Tasks
 
-- [ ] Интеграция OpenAI (system prompt + gpt-4o-mini)
-- [ ] Страница результата: оригинал vs адаптированный текст + diff
-- [ ] Генерация ATS-friendly PDF на выходе
+- [ ] Отладка ошибки адаптации (frontend показывает "Не удалось адаптировать")
 - [ ] Базовая защита от галлюцинаций (сверка дат/компаний с исходником)
 
 ## Backlog

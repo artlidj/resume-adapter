@@ -148,6 +148,8 @@ export default function App() {
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [adaptedText, setAdaptedText] = useState("");
+  const [keywordsUsed, setKeywordsUsed] = useState<string[]>([]);
+  const [matchScore, setMatchScore] = useState<number>(0);
 
   const t = translations[language];
 
@@ -182,6 +184,8 @@ export default function App() {
   function resetResultState() {
     if (submitState !== "idle") setSubmitState("idle");
     if (adaptedText) setAdaptedText("");
+    if (keywordsUsed.length > 0) setKeywordsUsed([]);
+    if (matchScore > 0) setMatchScore(0);
   }
 
   function handleFileSelect(file: File | null) {
@@ -194,7 +198,7 @@ export default function App() {
     }
   }
 
-  async function requestAdaptation(file: File, vacancy: string): Promise<string> {
+  async function requestAdaptation(file: File, vacancy: string): Promise<{ adaptedText: string; keywordsUsed: string[]; matchScore: number }> {
     const formData = new FormData();
     formData.append("resumeFile", file);
     formData.append("jobDescription", vacancy);
@@ -214,12 +218,16 @@ export default function App() {
       throw new Error("Adaptation request failed");
     }
 
-    const data = (await response.json()) as { adaptedText?: string };
+    const data = (await response.json()) as { adaptedText?: string; keywordsUsed?: string[]; matchScore?: number };
     if (!data.adaptedText) {
       throw new Error("Adapted text is missing in API response");
     }
 
-    return data.adaptedText;
+    return {
+      adaptedText: data.adaptedText,
+      keywordsUsed: data.keywordsUsed || [],
+      matchScore: data.matchScore || 0
+    };
   }
 
   async function handleSignIn() {
@@ -261,18 +269,42 @@ export default function App() {
     setAdaptedText("");
   }
 
-  function downloadDraft() {
+  async function downloadDraft() {
     if (!adaptedText) return;
 
-    const blob = new Blob([adaptedText], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "adapted-resume-draft.txt";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    try {
+      const response = await fetch(`${apiBaseUrl}/adapt/download`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          adaptedText,
+          keywordsUsed,
+          matchScore
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate DOCX");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+
+      const timestamp = new Date().toISOString().split("T")[0];
+      link.download = `adapted-resume-${timestamp}.docx`;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Download error:", error);
+      alert(language === "ru" ? "Не удалось скачать файл" : "Failed to download file");
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -289,8 +321,10 @@ export default function App() {
 
     try {
       setSubmitState("loading");
-      const resultText = await requestAdaptation(resumeFile, jobDescription.trim());
-      setAdaptedText(resultText);
+      const result = await requestAdaptation(resumeFile, jobDescription.trim());
+      setAdaptedText(result.adaptedText);
+      setKeywordsUsed(result.keywordsUsed);
+      setMatchScore(result.matchScore);
       setSubmitState("success");
     } catch {
       setSubmitState("error");
@@ -419,17 +453,47 @@ export default function App() {
 
               {submitState === "loading" ? <p className="status neutral">{t.processingHint}</p> : null}
               {submitState === "success" ? (
-                <div className="status success success-box">
-                  <p>{t.success}</p>
-                  <div className="actions">
-                    <button type="button" className="ghost-btn" onClick={downloadDraft}>
-                      {t.successPrimary}
-                    </button>
-                    <button type="button" className="ghost-btn" onClick={resetResultState}>
-                      {t.successSecondary}
-                    </button>
+                <>
+                  <div className="status success success-box">
+                    <p>{t.success}</p>
+                    <div className="actions">
+                      <button type="button" className="ghost-btn" onClick={downloadDraft}>
+                        {t.successPrimary}
+                      </button>
+                      <button type="button" className="ghost-btn" onClick={resetResultState}>
+                        {t.successSecondary}
+                      </button>
+                    </div>
                   </div>
-                </div>
+
+                  <div className="result-panel">
+                    <div className="result-header">
+                      <h3>📊 {language === "ru" ? "Результат адаптации" : "Adaptation Result"}</h3>
+                      <div className="match-score">
+                        <span className="score-label">{language === "ru" ? "Совпадение:" : "Match Score:"}</span>
+                        <span className="score-value">{matchScore}%</span>
+                      </div>
+                    </div>
+
+                    {keywordsUsed.length > 0 ? (
+                      <div className="keywords-section">
+                        <h4>{language === "ru" ? "Ключевые слова из вакансии:" : "Keywords from job description:"}</h4>
+                        <div className="keywords-list">
+                          {keywordsUsed.map((keyword) => (
+                            <span key={keyword} className="keyword-tag">{keyword}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="adapted-text-section">
+                      <h4>{language === "ru" ? "Адаптированное резюме:" : "Adapted Resume:"}</h4>
+                      <div className="adapted-text-box">
+                        <pre>{adaptedText}</pre>
+                      </div>
+                    </div>
+                  </div>
+                </>
               ) : null}
               {submitState === "error" ? <p className="status error-text">{t.error}</p> : null}
             </form>

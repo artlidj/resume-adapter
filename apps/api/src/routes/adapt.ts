@@ -1,9 +1,10 @@
 import { Router } from "express";
 import multer from "multer";
-import { createMockAdaptation } from "../lib/adapt.js";
+import { createAdaptation } from "../lib/adapt.js";
 import { parseResumeFile } from "../lib/parser.js";
 import { resolveUserId } from "../lib/auth.js";
 import { hasSupabaseConfig, saveAdaptationLog } from "../lib/supabase.js";
+import { generateResumeDocx } from "../lib/docx-generator.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -80,7 +81,33 @@ adaptRouter.post("/adapt", upload.single("resumeFile"), async (req, res) => {
     return res.status(422).json({ error: "The uploaded file appears to be empty or unreadable." });
   }
 
-  const result = createMockAdaptation(jobDescription, file.originalname);
+  let result;
+  try {
+    result = await createAdaptation(resumeText, jobDescription);
+  } catch (error) {
+    const durationMs = Date.now() - startedAt;
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+    try {
+      await saveAdaptationLog({
+        userId,
+        sourceFilename: file.originalname,
+        status: "error",
+        jobDescriptionLength: jobDescription.length,
+        matchScore: null,
+        keywordsUsed: [],
+        durationMs,
+        errorMessage
+      });
+    } catch (logError) {
+      console.error(logError);
+    }
+
+    return res.status(500).json({
+      error: "Failed to adapt resume",
+      details: errorMessage
+    });
+  }
 
   const durationMs = Date.now() - startedAt;
   try {
@@ -103,4 +130,40 @@ adaptRouter.post("/adapt", upload.single("resumeFile"), async (req, res) => {
     keywordsUsed: result.keywordsUsed,
     matchScore: result.matchScore
   });
+});
+
+adaptRouter.post("/adapt/download", async (req, res) => {
+  try {
+    const { adaptedText, keywordsUsed, matchScore } = req.body;
+
+    if (!adaptedText || typeof adaptedText !== "string") {
+      return res.status(400).json({ error: "adaptedText is required" });
+    }
+
+    if (!Array.isArray(keywordsUsed)) {
+      return res.status(400).json({ error: "keywordsUsed must be an array" });
+    }
+
+    if (typeof matchScore !== "number") {
+      return res.status(400).json({ error: "matchScore must be a number" });
+    }
+
+    const buffer = await generateResumeDocx({
+      adaptedText,
+      keywordsUsed,
+      matchScore
+    });
+
+    const timestamp = new Date().toISOString().split("T")[0];
+    const filename = `adapted-resume-${timestamp}.docx`;
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Length", buffer.length);
+
+    return res.send(buffer);
+  } catch (error) {
+    console.error("DOCX generation error:", error);
+    return res.status(500).json({ error: "Failed to generate DOCX file" });
+  }
 });

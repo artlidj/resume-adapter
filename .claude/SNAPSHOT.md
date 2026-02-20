@@ -1,12 +1,12 @@
 # SNAPSHOT — Адаптатор резюме
 
-*Last updated: 2026-02-19*
+*Last updated: 2026-02-20*
 
 ## Current State
 
 - Framework mode: active
 - Active branch: `main`
-- Status: MVP в разработке
+- Status: MVP в разработке (OpenAI интеграция добавлена, требуется отладка)
 
 ## Project Overview
 
@@ -16,7 +16,8 @@
 - Frontend: React 18 + TypeScript + Vite (порт 5173)
 - Backend: Express + Node.js + TypeScript (порт 8787)
 - БД/Auth: Supabase (PostgreSQL + RLS)
-- LLM: OpenAI (планируется, пока мок)
+- LLM: OpenAI gpt-4o-mini (интегрировано)
+- DOCX: docx библиотека для генерации Word файлов
 
 ## What's Done
 
@@ -27,16 +28,16 @@
 - [x] Backend: Express + multer + валидация файлов
 - [x] Парсинг файлов: PDF (pdf-parse), DOCX (mammoth), TXT
 - [x] Security: helmet.js, rate limiting (20 req/15min), MIME validation, jobDescription limits
-- [x] Mock адаптация (заглушка до подключения OpenAI)
+- [x] **OpenAI интеграция**: SDK установлен, система промпт создан, функция createAdaptation() с gpt-4o-mini
+- [x] **Отображение результата**: match score, ключевые слова, адаптированный текст на фронтенде
+- [x] **Генерация DOCX**: библиотека docx, endpoint /adapt/download, скачивание Word документа
 
 ## What's Next
 
-- [ ] Интеграция OpenAI (system prompt + Chat Completions API)
-- [ ] Страница результата (оригинал vs адаптированный + diff)
-- [ ] Генерация PDF на выходе
+- [ ] **Отладка**: исправить ошибку "Не удалось адаптировать" (требует проверки логов)
 - [ ] Защита от галлюцинаций (базовая валидация ответа)
 - [ ] Деплой: фронт на Netlify, API на Railway
 
 ## Current Focus
 
-Следующий шаг: интеграция OpenAI Chat Completions с system prompt для ATS-адаптации.
+Отладка OpenAI интеграции — требуется проверка логов API и browser console для выявления причины ошибки адаптации.
