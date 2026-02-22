@@ -1,0 +1,9 @@
+# macOS
+.DS_Store
+
+# Claude framework service files
+.claude/.last_session
+.claude/.session-owner
+.claude/settings.local.json
+.claude/migration-context.json
+.claude/logs/
