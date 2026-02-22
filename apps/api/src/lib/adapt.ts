@@ -18,7 +18,7 @@ Your task:
 
 Return ONLY valid JSON in this exact format:
 {
-  "adaptedText": "full adapted resume text with clear sections (SUMMARY, EXPERIENCE, SKILLS, EDUCATION)",
+  "adaptedText": "full adapted resume text with clear sections — use the same language as the original resume (e.g. SUMMARY/ОПЫТ РАБОТЫ/etc.)",
   "keywordsUsed": ["keyword1", "keyword2", ...],
   "matchScore": 85
 }
@@ -79,9 +79,20 @@ export function createMockAdaptation(jobDescription: string, filename: string): 
   };
 }
 
+const ALLOWED_MODELS = ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1"] as const;
+type AllowedModel = (typeof ALLOWED_MODELS)[number];
+
+function resolveModel(requested?: string): AllowedModel {
+  if (requested && (ALLOWED_MODELS as readonly string[]).includes(requested)) {
+    return requested as AllowedModel;
+  }
+  return "gpt-4o-mini";
+}
+
 export async function createAdaptation(
   resumeText: string,
-  jobDescription: string
+  jobDescription: string,
+  model?: string
 ): Promise<AdaptationResult> {
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -104,25 +115,29 @@ ${resumeText}
 Adapt this resume for the job description above. Return ONLY valid JSON.`;
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: resolveModel(model),
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: userPrompt }
     ],
+    response_format: { type: "json_object" },
     temperature: 0.7,
-    max_tokens: 2000
+    max_tokens: 3000
   });
 
-  const responseText = completion.choices[0]?.message?.content?.trim();
-  if (!responseText) {
+  const raw = completion.choices[0]?.message?.content?.trim();
+  if (!raw) {
     throw new Error("Empty response from OpenAI");
   }
+
+  // Strip markdown code fences if model returned them despite json_object mode
+  const responseText = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
 
   let parsed: AdaptationResult;
   try {
     parsed = JSON.parse(responseText);
   } catch {
-    throw new Error("Invalid JSON response from OpenAI");
+    throw new Error(`Invalid JSON response from OpenAI: ${responseText.slice(0, 200)}`);
   }
 
   if (!parsed.adaptedText || !Array.isArray(parsed.keywordsUsed) || typeof parsed.matchScore !== "number") {

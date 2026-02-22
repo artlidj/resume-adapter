@@ -34,7 +34,9 @@ adaptRouter.post("/adapt", upload.single("resumeFile"), async (req, res) => {
   const supabaseReady = hasSupabaseConfig();
 
   const file = req.file;
+  const rawResumeText = typeof req.body.resumeText === "string" ? req.body.resumeText.trim() : "";
   const jobDescription = typeof req.body.jobDescription === "string" ? req.body.jobDescription.trim() : "";
+  const model = typeof req.body.model === "string" ? req.body.model : undefined;
 
   if (authRequired && !supabaseReady) {
     return res.status(500).json({ error: "Supabase is not configured on API server" });
@@ -45,8 +47,8 @@ adaptRouter.post("/adapt", upload.single("resumeFile"), async (req, res) => {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  if (!file) {
-    return res.status(400).json({ error: "resumeFile is required" });
+  if (!file && !rawResumeText) {
+    return res.status(400).json({ error: "Either resumeFile or resumeText is required" });
   }
 
   if (!jobDescription) {
@@ -61,37 +63,43 @@ adaptRouter.post("/adapt", upload.single("resumeFile"), async (req, res) => {
     return res.status(400).json({ error: `Job description is too long (max ${JOB_DESCRIPTION_MAX} characters)` });
   }
 
-  const extension = getExtension(file.originalname);
-  if (!allowedExtensions.has(extension)) {
-    return res.status(400).json({ error: "Unsupported file format. Allowed: PDF, DOC, DOCX, TXT" });
-  }
-
-  if (!allowedMimeTypes.has(file.mimetype)) {
-    return res.status(400).json({ error: "Invalid file type" });
-  }
-
   let resumeText: string;
-  try {
-    resumeText = await parseResumeFile(file.buffer, file.originalname);
-  } catch {
-    return res.status(422).json({ error: "Could not extract text from the uploaded file." });
-  }
+  if (rawResumeText) {
+    resumeText = rawResumeText;
+  } else {
+    const extension = getExtension(file!.originalname);
+    if (!allowedExtensions.has(extension)) {
+      return res.status(400).json({ error: "Unsupported file format. Allowed: PDF, DOC, DOCX, TXT" });
+    }
 
-  if (!resumeText) {
-    return res.status(422).json({ error: "The uploaded file appears to be empty or unreadable." });
+    if (!allowedMimeTypes.has(file!.mimetype)) {
+      return res.status(400).json({ error: "Invalid file type" });
+    }
+    try {
+      resumeText = await parseResumeFile(file!.buffer, file!.originalname);
+    } catch (parseError) {
+      console.error("[adapt] parseResumeFile failed:", parseError);
+      return res.status(422).json({ error: "Could not extract text from the uploaded file." });
+    }
+
+    if (!resumeText) {
+      return res.status(422).json({ error: "The uploaded file appears to be empty or unreadable." });
+    }
   }
 
   let result;
   try {
-    result = await createAdaptation(resumeText, jobDescription);
+    result = await createAdaptation(resumeText, jobDescription, model);
   } catch (error) {
     const durationMs = Date.now() - startedAt;
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
+    console.error("[adapt] createAdaptation failed:", errorMessage);
+
     try {
       await saveAdaptationLog({
         userId,
-        sourceFilename: file.originalname,
+        sourceFilename: file?.originalname ?? "url-input",
         status: "error",
         jobDescriptionLength: jobDescription.length,
         matchScore: null,
@@ -113,7 +121,7 @@ adaptRouter.post("/adapt", upload.single("resumeFile"), async (req, res) => {
   try {
     await saveAdaptationLog({
       userId,
-      sourceFilename: file.originalname,
+      sourceFilename: file?.originalname ?? "url-input",
       status: "success",
       jobDescriptionLength: jobDescription.length,
       matchScore: result.matchScore,

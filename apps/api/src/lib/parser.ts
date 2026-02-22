@@ -4,7 +4,7 @@ export async function parseResumeFile(buffer: Buffer, filename: string): Promise
   const ext = filename.toLowerCase().split(".").pop();
 
   if (ext === "pdf") {
-    const pdfParse = (await import("pdf-parse")).default;
+    const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
     const data = await pdfParse(buffer);
     return data.text.trim();
   }

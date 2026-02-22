@@ -3,6 +3,7 @@ import express from "express";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
 import { adaptRouter } from "./routes/adapt.js";
+import { fetchContentRouter } from "./routes/fetch-content.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 8787);
@@ -26,6 +27,7 @@ app.get("/health", (_req, res) => {
 
 app.use("/adapt", adaptLimiter);
 app.use(adaptRouter);
+app.use(fetchContentRouter);
 
 app.listen(port, () => {
   console.log(`API listening on http://localhost:${port}`);

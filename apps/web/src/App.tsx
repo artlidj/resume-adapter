@@ -33,6 +33,19 @@ type Translation = {
   error: string;
   successPrimary: string;
   successSecondary: string;
+  copyText: string;
+  copied: string;
+  resumeTabFile: string;
+  resumeTabUrl: string;
+  resumeUrlPlaceholder: string;
+  resumeUrlHint: string;
+  resumeUrlError: string;
+  vacancyTabText: string;
+  vacancyTabUrl: string;
+  vacancyUrlPlaceholder: string;
+  vacancyUrlWarning: string;
+  vacancyUrlError: string;
+  fetchingContent: string;
   privacyTitle: string;
   privacyBody: string;
   authTitle: string;
@@ -73,6 +86,19 @@ const translations: Record<Language, Translation> = {
     error: "Failed to adapt. Please click again.",
     successPrimary: "Download draft",
     successSecondary: "Adapt again",
+    copyText: "Copy text",
+    copied: "Copied!",
+    resumeTabFile: "Upload file",
+    resumeTabUrl: "Google Docs link",
+    resumeUrlPlaceholder: "https://docs.google.com/document/d/...",
+    resumeUrlHint: "The document must be shared as \"Anyone with the link can view\".",
+    resumeUrlError: "Paste a Google Docs link.",
+    vacancyTabText: "Paste text",
+    vacancyTabUrl: "Link",
+    vacancyUrlPlaceholder: "https://...",
+    vacancyUrlWarning: "Google Docs works reliably. hh.ru and LinkedIn are not supported.",
+    vacancyUrlError: "Paste a link to the vacancy.",
+    fetchingContent: "Loading...",
     privacyTitle: "Privacy",
     privacyBody: "Your resume is used only for adaptation. We do not store source files permanently.",
     authTitle: "Sign in",
@@ -111,6 +137,19 @@ const translations: Record<Language, Translation> = {
     error: "Не удалось адаптировать. Нажмите кнопку снова.",
     successPrimary: "Скачать черновик",
     successSecondary: "Адаптировать снова",
+    copyText: "Копировать текст",
+    copied: "Скопировано!",
+    resumeTabFile: "Загрузить файл",
+    resumeTabUrl: "Ссылка Google Docs",
+    resumeUrlPlaceholder: "https://docs.google.com/document/d/...",
+    resumeUrlHint: "Документ должен быть открыт для просмотра по ссылке.",
+    resumeUrlError: "Вставьте ссылку на Google Docs.",
+    vacancyTabText: "Вставить текст",
+    vacancyTabUrl: "Ссылка",
+    vacancyUrlPlaceholder: "https://...",
+    vacancyUrlWarning: "Google Docs работает надёжно. hh.ru и LinkedIn не поддерживаются.",
+    vacancyUrlError: "Вставьте ссылку на вакансию.",
+    fetchingContent: "Загружаем...",
     privacyTitle: "Конфиденциальность",
     privacyBody: "Ваше резюме используется только для адаптации. Исходные файлы не хранятся постоянно.",
     authTitle: "Вход",
@@ -143,13 +182,20 @@ export default function App() {
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
 
+  const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
+  const [resumeInputMode, setResumeInputMode] = useState<"file" | "url">("file");
+  const [resumeUrl, setResumeUrl] = useState("");
   const [resumeFile, setResumeFile] = useState<File | null>(null);
+
+  const [vacancyInputMode, setVacancyInputMode] = useState<"text" | "url">("text");
+  const [vacancyUrl, setVacancyUrl] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [adaptedText, setAdaptedText] = useState("");
   const [keywordsUsed, setKeywordsUsed] = useState<string[]>([]);
   const [matchScore, setMatchScore] = useState<number>(0);
+  const [copied, setCopied] = useState(false);
 
   const t = translations[language];
 
@@ -198,10 +244,29 @@ export default function App() {
     }
   }
 
-  async function requestAdaptation(file: File, vacancy: string): Promise<{ adaptedText: string; keywordsUsed: string[]; matchScore: number }> {
+  async function fetchContentFromUrl(url: string): Promise<string> {
+    const response = await fetch(`${apiBaseUrl}/fetch-content?url=${encodeURIComponent(url)}`, {
+      headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
+    });
+    const data = await response.json() as { text?: string; error?: string };
+    if (!response.ok || !data.text) {
+      throw new Error(data.error ?? "Не удалось загрузить содержимое по ссылке");
+    }
+    return data.text;
+  }
+
+  async function requestAdaptation(
+    resume: { file: File } | { text: string },
+    vacancy: string
+  ): Promise<{ adaptedText: string; keywordsUsed: string[]; matchScore: number }> {
     const formData = new FormData();
-    formData.append("resumeFile", file);
+    if ("file" in resume) {
+      formData.append("resumeFile", resume.file);
+    } else {
+      formData.append("resumeText", resume.text);
+    }
     formData.append("jobDescription", vacancy);
+    formData.append("model", selectedModel);
 
     const headers: HeadersInit = {};
     if (session?.access_token) {
@@ -215,7 +280,9 @@ export default function App() {
     });
 
     if (!response.ok) {
-      throw new Error("Adaptation request failed");
+      const errorBody = await response.json().catch(() => ({})) as { error?: string; details?: string };
+      console.error("[adapt] API error", response.status, errorBody);
+      throw new Error(errorBody.details ?? errorBody.error ?? `HTTP ${response.status}`);
     }
 
     const data = (await response.json()) as { adaptedText?: string; keywordsUsed?: string[]; matchScore?: number };
@@ -269,6 +336,13 @@ export default function App() {
     setAdaptedText("");
   }
 
+  async function copyAdaptedText() {
+    if (!adaptedText) return;
+    await navigator.clipboard.writeText(adaptedText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   async function downloadDraft() {
     if (!adaptedText) return;
 
@@ -311,17 +385,37 @@ export default function App() {
     event.preventDefault();
 
     const nextErrors: ValidationErrors = {};
-    if (!resumeFile) nextErrors.resumeFile = t.fileError;
-    if (!jobDescription.trim()) nextErrors.jobDescription = t.vacancyError;
-    if (resumeFile && resumeFile.size > maxFileSizeBytes) nextErrors.resumeFile = t.fileLimitError;
+    if (resumeInputMode === "file") {
+      if (!resumeFile) nextErrors.resumeFile = t.fileError;
+      if (resumeFile && resumeFile.size > maxFileSizeBytes) nextErrors.resumeFile = t.fileLimitError;
+    } else {
+      if (!resumeUrl.trim()) nextErrors.resumeFile = t.resumeUrlError;
+    }
+    if (vacancyInputMode === "text" && !jobDescription.trim()) nextErrors.jobDescription = t.vacancyError;
+    if (vacancyInputMode === "url" && !vacancyUrl.trim()) nextErrors.jobDescription = t.vacancyUrlError;
 
     setErrors(nextErrors);
-
-    if (Object.keys(nextErrors).length > 0 || !resumeFile) return;
+    if (Object.keys(nextErrors).length > 0) return;
 
     try {
       setSubmitState("loading");
-      const result = await requestAdaptation(resumeFile, jobDescription.trim());
+
+      // Resolve resume
+      let resume: { file: File } | { text: string };
+      if (resumeInputMode === "file") {
+        resume = { file: resumeFile! };
+      } else {
+        const text = await fetchContentFromUrl(resumeUrl.trim());
+        resume = { text };
+      }
+
+      // Resolve vacancy
+      let vacancy = jobDescription.trim();
+      if (vacancyInputMode === "url") {
+        vacancy = await fetchContentFromUrl(vacancyUrl.trim());
+      }
+
+      const result = await requestAdaptation(resume, vacancy);
       setAdaptedText(result.adaptedText);
       setKeywordsUsed(result.keywordsUsed);
       setMatchScore(result.matchScore);
@@ -421,31 +515,93 @@ export default function App() {
 
             <form onSubmit={handleSubmit} className="form">
               <div className="field">
-                <span>{t.fileLabel}</span>
-                <label className={resumeFile ? "dropzone has-file" : "dropzone"}>
-                  <input className="file-input" type="file" accept=".pdf,.doc,.docx,.txt" onChange={(event) => handleFileSelect(event.target.files?.[0] ?? null)} />
-                  <span className="dropzone-title">{fileInfo ?? t.fileCta}</span>
-                  <span className="dropzone-subtitle">{t.fileHint}</span>
-                </label>
-                <small>{t.fileMetaHint}</small>
+                <div className="field-header">
+                  <span>{t.fileLabel}</span>
+                  <div className="input-mode-toggle">
+                    <button type="button" className={resumeInputMode === "file" ? "mode-btn active" : "mode-btn"} onClick={() => { setResumeInputMode("file"); setErrors((p) => ({ ...p, resumeFile: undefined })); }}>
+                      {t.resumeTabFile}
+                    </button>
+                    <button type="button" className={resumeInputMode === "url" ? "mode-btn active" : "mode-btn"} onClick={() => { setResumeInputMode("url"); setErrors((p) => ({ ...p, resumeFile: undefined })); }}>
+                      {t.resumeTabUrl}
+                    </button>
+                  </div>
+                </div>
+                {resumeInputMode === "file" ? (
+                  <>
+                    <label className={resumeFile ? "dropzone has-file" : "dropzone"}>
+                      <input className="file-input" type="file" accept=".pdf,.doc,.docx,.txt" onChange={(event) => handleFileSelect(event.target.files?.[0] ?? null)} />
+                      <span className="dropzone-title">{fileInfo ?? t.fileCta}</span>
+                      <span className="dropzone-subtitle">{t.fileHint}</span>
+                    </label>
+                    <small>{t.fileMetaHint}</small>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      type="url"
+                      placeholder={t.resumeUrlPlaceholder}
+                      value={resumeUrl}
+                      onChange={(e) => { setResumeUrl(e.target.value); setErrors((p) => ({ ...p, resumeFile: undefined })); resetResultState(); }}
+                    />
+                    <small>{t.resumeUrlHint}</small>
+                  </>
+                )}
                 {errors.resumeFile ? <small className="error">{errors.resumeFile}</small> : null}
               </div>
 
-              <label className="field">
-                <span>{t.vacancyLabel}</span>
-                <textarea
-                  rows={12}
-                  placeholder={t.vacancyPlaceholder}
-                  value={jobDescription}
-                  onChange={(event) => {
-                    setJobDescription(event.target.value);
-                    setErrors((prev) => ({ ...prev, jobDescription: undefined }));
-                    resetResultState();
-                  }}
-                />
-                <small>{t.vacancyHint}</small>
+              <div className="field">
+                <div className="field-header">
+                  <span>{t.vacancyLabel}</span>
+                  <div className="input-mode-toggle">
+                    <button type="button" className={vacancyInputMode === "text" ? "mode-btn active" : "mode-btn"} onClick={() => { setVacancyInputMode("text"); setErrors((p) => ({ ...p, jobDescription: undefined })); }}>
+                      {t.vacancyTabText}
+                    </button>
+                    <button type="button" className={vacancyInputMode === "url" ? "mode-btn active" : "mode-btn"} onClick={() => { setVacancyInputMode("url"); setErrors((p) => ({ ...p, jobDescription: undefined })); }}>
+                      {t.vacancyTabUrl}
+                    </button>
+                  </div>
+                </div>
+                {vacancyInputMode === "text" ? (
+                  <>
+                    <textarea
+                      rows={12}
+                      placeholder={t.vacancyPlaceholder}
+                      value={jobDescription}
+                      onChange={(event) => {
+                        setJobDescription(event.target.value);
+                        setErrors((prev) => ({ ...prev, jobDescription: undefined }));
+                        resetResultState();
+                      }}
+                    />
+                    <small>{t.vacancyHint}</small>
+                    <small style={{ color: jobDescription.length < 50 ? "#ef4444" : "#6b7280" }}>
+                      {jobDescription.length} / 20 000
+                    </small>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      type="url"
+                      placeholder={t.vacancyUrlPlaceholder}
+                      value={vacancyUrl}
+                      onChange={(e) => { setVacancyUrl(e.target.value); setErrors((p) => ({ ...p, jobDescription: undefined })); resetResultState(); }}
+                    />
+                    <small className="warning-text">{t.vacancyUrlWarning}</small>
+                  </>
+                )}
                 {errors.jobDescription ? <small className="error">{errors.jobDescription}</small> : null}
-              </label>
+              </div>
+
+              {/* DEV ONLY — remove before production */}
+              <div className="field dev-model-selector">
+                <span>🛠 Модель</span>
+                <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
+                  <option value="gpt-4o-mini">gpt-4o-mini (fast, cheap)</option>
+                  <option value="gpt-4o">gpt-4o (better quality)</option>
+                  <option value="gpt-4.1-mini">gpt-4.1-mini (newest mini)</option>
+
+                </select>
+              </div>
 
               <button type="submit" className="submit-btn" disabled={submitState === "loading"}>
                 {submitState === "loading" ? t.processing : t.submit}
@@ -459,6 +615,9 @@ export default function App() {
                     <div className="actions">
                       <button type="button" className="ghost-btn" onClick={downloadDraft}>
                         {t.successPrimary}
+                      </button>
+                      <button type="button" className="ghost-btn" onClick={copyAdaptedText}>
+                        {copied ? t.copied : t.copyText}
                       </button>
                       <button type="button" className="ghost-btn" onClick={resetResultState}>
                         {t.successSecondary}
