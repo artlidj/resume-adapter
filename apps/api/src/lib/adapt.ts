@@ -15,6 +15,8 @@ Your task:
 4. PRESERVE all factual information (dates, company names, job titles, education)
 5. DO NOT invent or add experience that doesn't exist
 6. Make the resume ATS-friendly (clear structure, keyword-rich)
+7. Use "- " (dash) for bullet points, never "*"
+8. Section headers (SUMMARY, EXPERIENCE, SKILLS, EDUCATION, etc.) must be ALL CAPS on their own line with a blank line before them
 
 Return ONLY valid JSON in this exact format:
 {
@@ -76,6 +78,95 @@ export function createMockAdaptation(jobDescription: string, filename: string): 
     adaptedText: text,
     keywordsUsed,
     matchScore: keywordsUsed.length > 0 ? Math.min(94, 58 + keywordsUsed.length * 4) : 58
+  };
+}
+
+const REFINE_SYSTEM_PROMPT = `You are an expert resume editor.
+
+You have already adapted a resume for a specific job. Now the user wants to make additional changes.
+
+Your task:
+1. Apply ONLY the requested changes to the adapted resume
+2. Preserve all content that the user did NOT ask to change
+3. PRESERVE all factual information (dates, company names, job titles, education)
+4. DO NOT invent or add experience that doesn't exist
+5. Keep the resume ATS-friendly
+6. Use "- " (dash) for bullet points, never "*"
+7. Section headers must be ALL CAPS on their own line with a blank line before them
+
+Return ONLY valid JSON in this exact format:
+{
+  "adaptedText": "full updated resume text",
+  "keywordsUsed": ["keyword1", "keyword2", ...],
+  "matchScore": 85
+}
+
+Match score should reflect the updated resume's fit for the job (60-95).`;
+
+export async function refineAdaptation(
+  adaptedText: string,
+  jobDescription: string,
+  instruction: string,
+  model?: string
+): Promise<AdaptationResult> {
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey || apiKey === "your_openai_api_key_here") {
+    throw new Error("OPENAI_API_KEY is not configured");
+  }
+
+  const openai = new OpenAI({ apiKey });
+
+  const userPrompt = `Job Description:
+${jobDescription}
+
+---
+
+Current Adapted Resume:
+${adaptedText}
+
+---
+
+Requested Changes:
+${instruction}
+
+---
+
+Apply the requested changes to the resume and return ONLY valid JSON.`;
+
+  const completion = await openai.chat.completions.create({
+    model: resolveModel(model),
+    messages: [
+      { role: "system", content: REFINE_SYSTEM_PROMPT },
+      { role: "user", content: userPrompt }
+    ],
+    response_format: { type: "json_object" },
+    temperature: 0.7,
+    max_tokens: 3000
+  });
+
+  const raw = completion.choices[0]?.message?.content?.trim();
+  if (!raw) {
+    throw new Error("Empty response from OpenAI");
+  }
+
+  const responseText = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+
+  let parsed: AdaptationResult;
+  try {
+    parsed = JSON.parse(responseText);
+  } catch {
+    throw new Error(`Invalid JSON response from OpenAI: ${responseText.slice(0, 200)}`);
+  }
+
+  if (!parsed.adaptedText || !Array.isArray(parsed.keywordsUsed) || typeof parsed.matchScore !== "number") {
+    throw new Error("Response missing required fields");
+  }
+
+  return {
+    adaptedText: parsed.adaptedText,
+    keywordsUsed: parsed.keywordsUsed,
+    matchScore: Math.max(60, Math.min(95, parsed.matchScore))
   };
 }
 

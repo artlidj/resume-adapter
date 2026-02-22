@@ -715,14 +715,67 @@ select {
   overflow-y: auto;
 }
 
-.adapted-text-box pre {
-  margin: 0;
+.resume-line {
   font-family: "SF Mono", "Monaco", "Cascadia Code", "Consolas", monospace;
   font-size: 0.88rem;
   line-height: 1.6;
   color: var(--color-text-adapted);
   white-space: pre-wrap;
   word-wrap: break-word;
+}
+
+.resume-section-header {
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  color: var(--color-text-primary);
+  margin-top: 14px;
+}
+
+/* Refinement panel */
+.refine-panel {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border-card);
+}
+
+.refine-panel h4 {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  font-weight: 650;
+  color: var(--color-text-result-heading);
+}
+
+.refine-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-input);
+  border-radius: 10px;
+  background: var(--color-bg-input);
+  color: var(--color-text-input);
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  resize: vertical;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.refine-textarea:focus {
+  outline: none;
+  border-color: var(--color-border-input-focus);
+  box-shadow: 0 0 0 3px var(--color-shadow-input-focus);
+}
+
+.refine-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.refine-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
 }
 
 @media (max-width: 640px) {

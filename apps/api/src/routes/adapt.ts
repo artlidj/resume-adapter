@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { createAdaptation } from "../lib/adapt.js";
+import { createAdaptation, refineAdaptation } from "../lib/adapt.js";
 import { parseResumeFile } from "../lib/parser.js";
 import { resolveUserId } from "../lib/auth.js";
 import { hasSupabaseConfig, saveAdaptationLog } from "../lib/supabase.js";
@@ -138,6 +138,54 @@ adaptRouter.post("/adapt", upload.single("resumeFile"), async (req, res) => {
     keywordsUsed: result.keywordsUsed,
     matchScore: result.matchScore
   });
+});
+
+adaptRouter.post("/adapt/refine", async (req, res) => {
+  const authRequired = (process.env.AUTH_REQUIRED ?? "true") === "true";
+  const supabaseReady = hasSupabaseConfig();
+
+  if (authRequired && !supabaseReady) {
+    return res.status(500).json({ error: "Supabase is not configured on API server" });
+  }
+
+  const userId = await resolveUserId(req);
+  if (authRequired && !userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const adaptedText = typeof req.body.adaptedText === "string" ? req.body.adaptedText.trim() : "";
+  const jobDescription = typeof req.body.jobDescription === "string" ? req.body.jobDescription.trim() : "";
+  const instruction = typeof req.body.instruction === "string" ? req.body.instruction.trim() : "";
+  const model = typeof req.body.model === "string" ? req.body.model : undefined;
+
+  if (!adaptedText) {
+    return res.status(400).json({ error: "adaptedText is required" });
+  }
+
+  if (!jobDescription) {
+    return res.status(400).json({ error: "jobDescription is required" });
+  }
+
+  if (!instruction) {
+    return res.status(400).json({ error: "instruction is required" });
+  }
+
+  if (instruction.length > 2000) {
+    return res.status(400).json({ error: "instruction is too long (max 2000 characters)" });
+  }
+
+  try {
+    const result = await refineAdaptation(adaptedText, jobDescription, instruction, model);
+    return res.json({
+      adaptedText: result.adaptedText,
+      keywordsUsed: result.keywordsUsed,
+      matchScore: result.matchScore
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("[adapt/refine] refineAdaptation failed:", errorMessage);
+    return res.status(500).json({ error: "Failed to refine resume", details: errorMessage });
+  }
 });
 
 adaptRouter.post("/adapt/download", async (req, res) => {

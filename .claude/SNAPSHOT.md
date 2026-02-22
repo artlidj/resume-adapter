@@ -1,6 +1,6 @@
 # SNAPSHOT — Адаптатор резюме
 
-*Last updated: 2026-02-22*
+*Last updated: 2026-02-22 (session 2)*
 
 ## Current State
 
@@ -38,6 +38,7 @@
 - [x] **Ввод через ссылку**: Google Docs для резюме и вакансии, generic URL для вакансии
 - [x] **Выбор модели OpenAI**: dev-дропдаун (gpt-4o-mini, gpt-4o, gpt-4.1-mini)
 - [x] **DOCX улучшения**: разделение между секциями, имя 18pt, контакты 12pt, буллеты
+- [x] **Refinement loop**: поле уточнений под результатом → POST /adapt/refine → OpenAI → обновление на месте
 
 ## What's Next
 

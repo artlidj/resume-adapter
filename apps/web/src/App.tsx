@@ -61,6 +61,11 @@ type Translation = {
   switchToSignUp: string;
   switchToSignIn: string;
   authConfigError: string;
+  refineLabel: string;
+  refinePlaceholder: string;
+  refineSubmit: string;
+  refineProcessing: string;
+  refineError: string;
 };
 
 const translations: Record<Language, Translation> = {
@@ -113,7 +118,12 @@ const translations: Record<Language, Translation> = {
     signOut: "Sign out",
     switchToSignUp: "No account? Register",
     switchToSignIn: "Already have an account? Sign in",
-    authConfigError: "Supabase auth is not configured in frontend env."
+    authConfigError: "Supabase auth is not configured in frontend env.",
+    refineLabel: "Refine the result",
+    refinePlaceholder: "Describe what to change, e.g. \"add that I know Kubernetes\" or \"make the summary shorter\"...",
+    refineSubmit: "Apply changes",
+    refineProcessing: "Applying...",
+    refineError: "Failed to apply changes. Please try again."
   },
   ru: {
     title: "Адаптатор резюме",
@@ -164,7 +174,12 @@ const translations: Record<Language, Translation> = {
     signOut: "Выйти",
     switchToSignUp: "Нет аккаунта? Зарегистрироваться",
     switchToSignIn: "Уже есть аккаунт? Войти",
-    authConfigError: "Supabase auth не настроен в переменных фронтенда."
+    authConfigError: "Supabase auth не настроен в переменных фронтенда.",
+    refineLabel: "Уточнить результат",
+    refinePlaceholder: "Опишите что изменить, например «добавь что я знаю Kubernetes» или «сделай summary короче»...",
+    refineSubmit: "Применить",
+    refineProcessing: "Применяем...",
+    refineError: "Не удалось применить изменения. Попробуйте снова."
   }
 };
 
@@ -196,6 +211,9 @@ export default function App() {
   const [keywordsUsed, setKeywordsUsed] = useState<string[]>([]);
   const [matchScore, setMatchScore] = useState<number>(0);
   const [copied, setCopied] = useState(false);
+  const [refineInstruction, setRefineInstruction] = useState("");
+  const [refineState, setRefineState] = useState<"idle" | "loading" | "error">("idle");
+  const [effectiveJobDescription, setEffectiveJobDescription] = useState("");
 
   const t = translations[language];
 
@@ -295,6 +313,38 @@ export default function App() {
       keywordsUsed: data.keywordsUsed || [],
       matchScore: data.matchScore || 0
     };
+  }
+
+  async function requestRefinement(instruction: string): Promise<void> {
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/adapt/refine`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        adaptedText,
+        jobDescription: effectiveJobDescription,
+        instruction,
+        model: selectedModel
+      })
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({})) as { error?: string; details?: string };
+      throw new Error(errorBody.details ?? errorBody.error ?? `HTTP ${response.status}`);
+    }
+
+    const data = (await response.json()) as { adaptedText?: string; keywordsUsed?: string[]; matchScore?: number };
+    if (!data.adaptedText) {
+      throw new Error("Adapted text is missing in API response");
+    }
+
+    setAdaptedText(data.adaptedText);
+    setKeywordsUsed(data.keywordsUsed ?? []);
+    setMatchScore(data.matchScore ?? 0);
   }
 
   async function handleSignIn() {
@@ -419,6 +469,9 @@ export default function App() {
       setAdaptedText(result.adaptedText);
       setKeywordsUsed(result.keywordsUsed);
       setMatchScore(result.matchScore);
+      setEffectiveJobDescription(vacancy);
+      setRefineInstruction("");
+      setRefineState("idle");
       setSubmitState("success");
     } catch {
       setSubmitState("error");
@@ -648,9 +701,58 @@ export default function App() {
                     <div className="adapted-text-section">
                       <h4>{language === "ru" ? "Адаптированное резюме:" : "Adapted Resume:"}</h4>
                       <div className="adapted-text-box">
-                        <pre>{adaptedText}</pre>
+                        {adaptedText.split("\n").map((line, i) => {
+                          const trimmed = line.trim();
+                          const isHeader =
+                            trimmed.length > 0 &&
+                            trimmed.length < 60 &&
+                            trimmed === trimmed.toLocaleUpperCase() &&
+                            !/^[-•]/.test(trimmed);
+                          return (
+                            <div key={i} className={isHeader ? "resume-line resume-section-header" : "resume-line"}>
+                              {trimmed || "\u00A0"}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
+                  </div>
+
+                  <div className="refine-panel">
+                    <h4>{t.refineLabel}</h4>
+                    <textarea
+                      className="refine-textarea"
+                      placeholder={t.refinePlaceholder}
+                      value={refineInstruction}
+                      rows={3}
+                      maxLength={2000}
+                      disabled={refineState === "loading"}
+                      onChange={(e) => {
+                        setRefineInstruction(e.target.value);
+                        if (refineState === "error") setRefineState("idle");
+                      }}
+                    />
+                    <div className="refine-actions">
+                      <button
+                        type="button"
+                        className="ghost-btn"
+                        disabled={refineState === "loading" || !refineInstruction.trim()}
+                        onClick={async () => {
+                          if (!refineInstruction.trim()) return;
+                          setRefineState("loading");
+                          try {
+                            await requestRefinement(refineInstruction.trim());
+                            setRefineInstruction("");
+                            setRefineState("idle");
+                          } catch {
+                            setRefineState("error");
+                          }
+                        }}
+                      >
+                        {refineState === "loading" ? t.refineProcessing : t.refineSubmit}
+                      </button>
+                    </div>
+                    {refineState === "error" ? <p className="error-text">{t.refineError}</p> : null}
                   </div>
                 </>
               ) : null}
