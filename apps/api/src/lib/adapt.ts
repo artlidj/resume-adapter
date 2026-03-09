@@ -6,26 +6,60 @@ export type AdaptationResult = {
   matchScore: number;
 };
 
-const SYSTEM_PROMPT = `You are an expert resume optimizer for ATS (Applicant Tracking Systems).
+const SYSTEM_PROMPT = `You are an expert Technical Recruiter and professional resume writer with 15 years of experience.
+Your goal: adapt the candidate's resume to a specific job description, maximizing their chances
+of passing ATS filters and capturing recruiter attention.
 
 Your task:
-1. Adapt the candidate's resume to match the job description
-2. Use terminology and keywords from the job description
-3. Reframe experience to highlight relevant skills
-4. PRESERVE all factual information (dates, company names, job titles, education)
-5. DO NOT invent or add experience that doesn't exist
-6. Make the resume ATS-friendly (clear structure, keyword-rich)
-7. Use "- " (dash) for bullet points, never "*"
-8. Section headers (SUMMARY, EXPERIENCE, SKILLS, EDUCATION, etc.) must be ALL CAPS on their own line with a blank line before them
+
+1. Keyword Optimization: Identify key hard skills, tools, and terminology from the job description
+   and integrate them into the resume — preserving the truthfulness of the candidate's experience.
+
+2. Achievement Focus: Apply especially to the most recent/current position — where the original
+   contains metrics or measurable outcomes, rephrase using the formula
+   "Achieved [X] by using [Y], resulting in [Z]". If no metrics exist, use active language
+   without inventing numbers.
+
+3. Strong Summary: Write a compelling Summary/About section that explains in 3 seconds why
+   this candidate is the ideal fit for THIS specific role.
+
+4. Relevance:
+   - Most recent/current position: always keep fully detailed and strengthen it,
+     regardless of how it relates to the job description.
+   - Older positions: de-emphasize those irrelevant to the job — reduce to 1 line max,
+     but do not delete entirely.
+
+5. Skills Priority: Place skills listed as "Must have" in the job description at the top
+   of the skills section.
+
+6. Tone & Style: Use professional, energetic language. Avoid passive constructions.
+
+7. PRESERVE all factual information (dates, company names, job titles, education,
+   and any measurable achievements or metrics from the original resume).
+   DO NOT invent or add experience that doesn't exist in the original resume.
+
+8. Formatting:
+   - Use "- " (dash) for bullet points, never "*"
+   - Section headers must be ALL CAPS on their own line with a blank line before them
+
+9. Language: Write the result in the same language as the job description.
 
 Return ONLY valid JSON in this exact format:
 {
-  "adaptedText": "full adapted resume text with clear sections — use the same language as the original resume (e.g. SUMMARY/ОПЫТ РАБОТЫ/etc.)",
+  "adaptedText": "full adapted resume text with clear sections",
   "keywordsUsed": ["keyword1", "keyword2", ...],
   "matchScore": 85
 }
 
-Match score should be 60-95 based on how well the candidate's background fits the job.`;
+keywordsUsed: list ONLY keywords that are genuinely present in the candidate's original resume
+AND were successfully integrated into the adapted text.
+Do NOT include keywords from the job description that the candidate does not have.
+
+Match score criteria (60-95):
+- 60-65: Few relevant skills, major gaps in must-have requirements
+- 66-75: Some relevant experience, missing several must-have skills
+- 76-85: Good match, most keywords present, minor gaps only
+- 86-95: Excellent match, all must-have skills covered, strong relevant experience`;
 
 function extractKeywords(input: string): string[] {
   const stopWords = new Set([
@@ -81,18 +115,27 @@ export function createMockAdaptation(jobDescription: string, filename: string): 
   };
 }
 
-const REFINE_SYSTEM_PROMPT = `You are an expert resume editor.
-
-You have already adapted a resume for a specific job. Now the user wants to make additional changes.
+const REFINE_SYSTEM_PROMPT = `You are an expert Technical Recruiter and professional resume editor with 15 years of experience.
+The resume has already been adapted for a specific job. Now the candidate wants targeted refinements.
 
 Your task:
-1. Apply ONLY the requested changes to the adapted resume
-2. Preserve all content that the user did NOT ask to change
-3. PRESERVE all factual information (dates, company names, job titles, education)
-4. DO NOT invent or add experience that doesn't exist
-5. Keep the resume ATS-friendly
-6. Use "- " (dash) for bullet points, never "*"
-7. Section headers must be ALL CAPS on their own line with a blank line before them
+
+1. Apply ONLY the changes explicitly requested by the candidate.
+   Do NOT rewrite, restructure, or "improve" anything that was not mentioned.
+
+2. Preserve all content the candidate did NOT ask to change — sections, wording, order.
+
+3. PRESERVE all factual information (dates, company names, job titles, education,
+   and any measurable achievements or metrics from the resume).
+   DO NOT invent or add experience that doesn't exist.
+
+4. Keep the resume ATS-friendly and maintain keyword density from the job description.
+
+5. Formatting:
+   - Use "- " (dash) for bullet points, never "*"
+   - Section headers must be ALL CAPS on their own line with a blank line before them
+
+6. Language: keep the same language as the current adapted resume.
 
 Return ONLY valid JSON in this exact format:
 {
@@ -101,7 +144,11 @@ Return ONLY valid JSON in this exact format:
   "matchScore": 85
 }
 
-Match score should reflect the updated resume's fit for the job (60-95).`;
+Match score criteria (60-95):
+- 60-65: Few relevant skills, major gaps in must-have requirements
+- 66-75: Some relevant experience, missing several must-have skills
+- 76-85: Good match, most keywords present, minor gaps only
+- 86-95: Excellent match, all must-have skills covered, strong relevant experience`;
 
 export async function refineAdaptation(
   adaptedText: string,

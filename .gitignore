@@ -1,9 +1,23 @@
 # macOS
 .DS_Store
 
-# Claude framework service files
-.claude/.last_session
-.claude/.session-owner
-.claude/settings.local.json
-.claude/migration-context.json
-.claude/logs/
+# Secrets — NEVER commit
+.env
+.env.local
+.env.*.local
+apps/api/.env
+apps/web/.env
+
+# Dependencies
+node_modules/
+apps/api/node_modules/
+apps/web/node_modules/
+
+# Build output
+dist/
+apps/api/dist/
+apps/web/dist/
+
+# Claude/Codex framework (internal dev tooling)
+.claude/
+.codex/

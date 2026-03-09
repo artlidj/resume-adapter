@@ -19,6 +19,7 @@ const allowedMimeTypes = new Set([
   "text/plain"
 ]);
 const JOB_DESCRIPTION_MIN = 50;
+const JOB_DESCRIPTION_MIN_URL = 10;
 const JOB_DESCRIPTION_MAX = 20000;
 
 function getExtension(filename: string): string {
@@ -36,6 +37,7 @@ adaptRouter.post("/adapt", upload.single("resumeFile"), async (req, res) => {
   const file = req.file;
   const rawResumeText = typeof req.body.resumeText === "string" ? req.body.resumeText.trim() : "";
   const jobDescription = typeof req.body.jobDescription === "string" ? req.body.jobDescription.trim() : "";
+  const vacancyInputMode = req.body.vacancyInputMode === "url" ? "url" : "text";
   const model = typeof req.body.model === "string" ? req.body.model : undefined;
 
   if (authRequired && !supabaseReady) {
@@ -55,8 +57,9 @@ adaptRouter.post("/adapt", upload.single("resumeFile"), async (req, res) => {
     return res.status(400).json({ error: "jobDescription is required" });
   }
 
-  if (jobDescription.length < JOB_DESCRIPTION_MIN) {
-    return res.status(400).json({ error: `Job description is too short (min ${JOB_DESCRIPTION_MIN} characters)` });
+  const minLength = vacancyInputMode === "url" ? JOB_DESCRIPTION_MIN_URL : JOB_DESCRIPTION_MIN;
+  if (jobDescription.length < minLength) {
+    return res.status(400).json({ error: `Job description is too short (min ${minLength} characters)` });
   }
 
   if (jobDescription.length > JOB_DESCRIPTION_MAX) {

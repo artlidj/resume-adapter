@@ -275,7 +275,8 @@ export default function App() {
 
   async function requestAdaptation(
     resume: { file: File } | { text: string },
-    vacancy: string
+    vacancy: string,
+    vacancyMode: "text" | "url" = "text"
   ): Promise<{ adaptedText: string; keywordsUsed: string[]; matchScore: number }> {
     const formData = new FormData();
     if ("file" in resume) {
@@ -284,6 +285,7 @@ export default function App() {
       formData.append("resumeText", resume.text);
     }
     formData.append("jobDescription", vacancy);
+    formData.append("vacancyInputMode", vacancyMode);
     formData.append("model", selectedModel);
 
     const headers: HeadersInit = {};
@@ -465,7 +467,7 @@ export default function App() {
         vacancy = await fetchContentFromUrl(vacancyUrl.trim());
       }
 
-      const result = await requestAdaptation(resume, vacancy);
+      const result = await requestAdaptation(resume, vacancy, vacancyInputMode);
       setAdaptedText(result.adaptedText);
       setKeywordsUsed(result.keywordsUsed);
       setMatchScore(result.matchScore);
