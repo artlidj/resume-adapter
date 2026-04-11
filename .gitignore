@@ -21,3 +21,6 @@ apps/web/dist/
 # Claude/Codex framework (internal dev tooling)
 .claude/
 .codex/
+
+# Local testing & research (not for repo)
+testing/
