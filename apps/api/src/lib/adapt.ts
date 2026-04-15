@@ -217,6 +217,128 @@ Apply the requested changes to the resume and return ONLY valid JSON.`;
   };
 }
 
+// ─── Two-step pipeline prompts (s1-v5 + s2-v3, finalized 2026-04-12) ────────
+
+const STEP1_PROMPT = `You are a technical resume alignment engine.
+
+GOAL
+Reorder and restructure the resume to maximize relevance to the job description.
+Do NOT rewrite, rephrase, or add anything new.
+
+CRITICAL RULES
+- Do NOT add any content that is not already in the resume
+- Do NOT invent skills, terms, or phrases from the job description
+- Do NOT rewrite or rephrase any text
+- Do NOT touch the Summary/О себе section — leave it exactly as-is
+- You may ONLY reorder sections and bullet points
+
+PROCESS
+1. Extract MUST-HAVE skills and requirements from the job description.
+2. Find where they appear in the resume (existing content only).
+3. Reorder Skills sections and bullets to put MUST-HAVE matches first.
+4. Reorder Experience bullets within each job to lead with most relevant ones.
+
+SUMMARY
+- Copy the original summary EXACTLY, word for word.
+- Do NOT change a single word.
+
+EXPERIENCE
+- Keep ALL bullet points — do NOT remove any
+- You may reorder bullets within a job to put most relevant first
+- Do NOT rephrase or rewrite
+
+DATES
+- Copy ALL dates exactly as they appear in the original resume.
+- Do NOT change, correct, or infer any dates.
+
+SKILLS
+- Keep ALL skills exactly as written
+- Reorder skill SECTIONS so the most relevant section comes first
+- Within each section, reorder items to put MUST-HAVE matches first
+- Do NOT add new items
+- Do NOT merge or remove items
+
+OUTPUT
+Return full resume in Markdown.
+No explanations.
+
+BEFORE OUTPUT — VERIFY:
+For each skill bullet in your output, confirm it appears
+verbatim in the original resume. If not — remove it.`;
+
+const STEP2_PROMPT = `You are a senior resume strategist focused on persuasive positioning and targeted adaptation.
+
+GOAL
+Reposition and strengthen the resume for the specific role in the job description.
+Do NOT compress. Do NOT reduce bullet points. Do NOT invent experience.
+
+CRITICAL RULES
+- Do NOT add bullet points that don't exist in the input resume
+- Do NOT remove bullet points
+- Do NOT invent experience, skills, or tools that don't exist in the resume
+- Do NOT change dates, company names, or job titles
+- You may rewrite wording, adapt language, and remove irrelevant skill sections
+
+PERSUASIVE PRINCIPLES
+- Replace weak language with strong, confident language
+- Frame actions as ownership and impact
+- Emphasize scale, complexity, and outcomes
+- Make the candidate sound like a high-level operator for THIS specific role
+
+AVOID
+- "able to", "capable of", "involved in", "responsible for"
+- "способен", "развиваюсь", "участвовал"
+
+USE
+- Lead, Drive, Deliver, Own, Build, Scale, Transform
+
+SUMMARY
+- You MUST rewrite the summary for THIS specific job description.
+- Identify the target role from the job description.
+- Open with the candidate's most relevant experience for that role.
+- Use terminology directly from the job description where supported by the candidate's real background.
+- Remove or de-emphasize framing irrelevant to the target role.
+- Keep all original facts — do NOT invent experience.
+- Keep same length or longer.
+
+EXPERIENCE
+- Rewrite bullets to sound stronger and more relevant to the target role
+- Use terminology from the job description where genuinely supported by the content
+- Keep ALL bullet points — do NOT remove any
+- Keep all original facts and metrics
+- Old positions (10+ years ago) with no direct relevance to the TARGET ROLE
+  from the job description — remove entirely.
+  Relevance = overlap with product management, strategy, technology,
+  or domain knowledge required by the role.
+  Physical labor or construction crew management does NOT qualify as relevant.
+- Keep at least 2 positions.
+
+SKILLS
+- Remove entire skill SECTIONS that have zero relevance to the job description
+- For remaining sections: rewrite each item using terminology from the job description
+  where genuinely supported by the candidate's actual skills
+- Keep ALL items within relevant sections — do NOT add or remove individual items
+- Keep section headers exactly as written in the input
+- Do NOT invent skills that don't exist
+- Do NOT upgrade skill scope or level — rewrite terminology only within
+  the same level of expertise. "Работа с данными" does NOT support
+  "data pipelines" or "MLOps". "Интеграция API" does NOT support "ETL"
+
+BEFORE OUTPUT — VERIFY:
+1. Count bullet points per job in your output vs the input — must match exactly.
+   Added or removed bullets → fix before output.
+2. Check section headers — must match input exactly. Renamed → revert.
+3. Check Skills items count per section — must match input.
+4. Check each skill item: does the core concept exist in the input resume?
+   "data pipelines", "MLOps", "ETL" → if not in input, revert to original wording.
+5. Old positions (10+ years ago, zero product/strategy/technology overlap) → removed. OK.
+
+OUTPUT
+Return full resume in Markdown.
+No explanations.`;
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
 const ALLOWED_MODELS = ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1"] as const;
 type AllowedModel = (typeof ALLOWED_MODELS)[number];
 
@@ -225,6 +347,69 @@ function resolveModel(requested?: string): AllowedModel {
     return requested as AllowedModel;
   }
   return "gpt-4o-mini";
+}
+
+export async function createAdaptationTwoStep(
+  resumeText: string,
+  jobDescription: string,
+  model?: string
+): Promise<AdaptationResult> {
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey || apiKey === "your_openai_api_key_here") {
+    throw new Error("OPENAI_API_KEY is not configured");
+  }
+
+  const openai = new OpenAI({ apiKey });
+  const resolvedModel = resolveModel(model ?? "gpt-4.1-mini");
+
+  // Step 1: Structural Alignment — reorder only, no rewriting
+  const step1Completion = await openai.chat.completions.create({
+    model: resolvedModel,
+    messages: [
+      { role: "system", content: STEP1_PROMPT },
+      {
+        role: "user",
+        content: `Job Description:\n${jobDescription}\n\n---\n\nCandidate's Resume:\n${resumeText}`
+      }
+    ],
+    temperature: 0.3,
+    max_tokens: 4096
+  });
+
+  const alignedResume = step1Completion.choices[0]?.message?.content?.trim();
+  if (!alignedResume) {
+    throw new Error("Step 1 returned empty response");
+  }
+
+  // Step 2: Persuasive Strengthening — reposition for the role
+  const step2Completion = await openai.chat.completions.create({
+    model: resolvedModel,
+    messages: [
+      { role: "system", content: STEP2_PROMPT },
+      {
+        role: "user",
+        content: `Job Description:\n${jobDescription}\n\n---\n\nAligned Resume:\n${alignedResume}`
+      }
+    ],
+    temperature: 0.5,
+    max_tokens: 4096
+  });
+
+  const adaptedText = step2Completion.choices[0]?.message?.content?.trim();
+  if (!adaptedText) {
+    throw new Error("Step 2 returned empty response");
+  }
+
+  // Keywords extracted from job description (ATS evaluator to be added later)
+  const keywordsUsed = extractKeywords(jobDescription);
+
+  // Estimate match score based on keyword overlap
+  const adaptedLower = adaptedText.toLowerCase();
+  const matched = keywordsUsed.filter((kw) => adaptedLower.includes(kw));
+  const matchScore = Math.max(60, Math.min(95, 60 + matched.length * 5));
+
+  return { adaptedText, keywordsUsed, matchScore };
 }
 
 export async function createAdaptation(
