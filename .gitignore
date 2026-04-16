@@ -24,3 +24,6 @@ apps/web/dist/
 
 # Local testing & research (not for repo)
 testing/
+
+# LinkedIn posts (personal, delete before/after launch)
+linkedin-posts.md

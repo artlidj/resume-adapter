@@ -217,7 +217,7 @@ Apply the requested changes to the resume and return ONLY valid JSON.`;
   };
 }
 
-// ─── Two-step pipeline prompts (s1-v5 + s2-v3, finalized 2026-04-12) ────────
+// ─── Two-step pipeline prompts (s1-v6 + s2-v5, finalized 2026-04-16) ────────
 
 const STEP1_PROMPT = `You are a technical resume alignment engine.
 
@@ -248,8 +248,14 @@ EXPERIENCE
 - Do NOT rephrase or rewrite
 
 DATES
-- Copy ALL dates exactly as they appear in the original resume.
-- Do NOT change, correct, or infer any dates.
+- Copy ALL dates exactly as written — do NOT change, correct, or infer any dates.
+- Resumes from hh.ru list date ranges BEFORE the role title they belong to.
+  The pattern: dates appear first (top to bottom, newest → oldest),
+  then company names and role titles follow in the same order.
+  First date range → first role listed. Second date range → second role. Etc.
+- In your output: place each date range DIRECTLY above the role title it belongs to.
+  Do NOT leave orphaned date ranges without a role title.
+  Do NOT attach the wrong date to a role.
 
 SKILLS
 - Keep ALL skills exactly as written
@@ -263,8 +269,10 @@ Return full resume in Markdown.
 No explanations.
 
 BEFORE OUTPUT — VERIFY:
-For each skill bullet in your output, confirm it appears
-verbatim in the original resume. If not — remove it.`;
+1. For each skill item in your output, confirm it appears verbatim in the original resume.
+   If not — remove it.
+2. For each role in your output, confirm it has exactly one date range attached.
+   If a role has no date or has the wrong date — fix before output.`;
 
 const STEP2_PROMPT = `You are a senior resume strategist focused on persuasive positioning and targeted adaptation.
 
@@ -277,6 +285,7 @@ CRITICAL RULES
 - Do NOT remove bullet points
 - Do NOT invent experience, skills, or tools that don't exist in the resume
 - Do NOT change dates, company names, or job titles
+- Do NOT modify the desired position / job title header — copy it exactly as written
 - You may rewrite wording, adapt language, and remove irrelevant skill sections
 
 PERSUASIVE PRINCIPLES
@@ -300,6 +309,13 @@ SUMMARY
 - Remove or de-emphasize framing irrelevant to the target role.
 - Keep all original facts — do NOT invent experience.
 - Keep same length or longer.
+- Do NOT add aspirations, intentions, or sentences not grounded in the original resume.
+  If the candidate lacks relevant experience — reframe what they DO have. Do not invent what they don't.
+
+DATES
+- Copy each date to the exact position it appears in the input.
+- Do NOT reassign dates between positions.
+- Do NOT change, correct, or infer any dates.
 
 EXPERIENCE
 - Rewrite bullets to sound stronger and more relevant to the target role
@@ -317,21 +333,26 @@ SKILLS
 - Remove entire skill SECTIONS that have zero relevance to the job description
 - For remaining sections: rewrite each item using terminology from the job description
   where genuinely supported by the candidate's actual skills
-- Keep ALL items within relevant sections — do NOT add or remove individual items
+- Keep ALL items within relevant sections — do NOT add, remove, or merge individual items
 - Keep section headers exactly as written in the input
 - Do NOT invent skills that don't exist
 - Do NOT upgrade skill scope or level — rewrite terminology only within
   the same level of expertise. "Работа с данными" does NOT support
-  "data pipelines" or "MLOps". "Интеграция API" does NOT support "ETL"
+  "data pipelines" or "MLOps". "Интеграция API" does NOT support "ETL".
+  "Организаторские навыки" does NOT support "стратегическое планирование".
 
 BEFORE OUTPUT — VERIFY:
 1. Count bullet points per job in your output vs the input — must match exactly.
-   Added or removed bullets → fix before output.
+   If count doesn't match — restore missing bullets verbatim from input before outputting.
 2. Check section headers — must match input exactly. Renamed → revert.
-3. Check Skills items count per section — must match input.
+3. Count individual skill items (not groups) per section — must match input exactly.
+   Merged items = violation → restore originals.
 4. Check each skill item: does the core concept exist in the input resume?
-   "data pipelines", "MLOps", "ETL" → if not in input, revert to original wording.
-5. Old positions (10+ years ago, zero product/strategy/technology overlap) → removed. OK.
+   If not — revert to original wording.
+5. Check dates: each date must be assigned to the same position as in the input.
+   Reassigned date → fix before output.
+6. Old positions (10+ years ago, zero management/product/technical overlap) → removed. OK.
+   Position ended less than 10 years ago → must be kept unless physical labor.
 
 OUTPUT
 Return full resume in Markdown.
@@ -392,7 +413,7 @@ export async function createAdaptationTwoStep(
         content: `Job Description:\n${jobDescription}\n\n---\n\nAligned Resume:\n${alignedResume}`
       }
     ],
-    temperature: 0.5,
+    temperature: 0.3,
     max_tokens: 4096
   });
 
